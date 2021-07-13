@@ -1,0 +1,28 @@
+{
+  "dependencies": {
+    "better-sqlite3": "^7.4.1",
+    "discord.js": "^12.5.3",
+    "dotenv": "^10.0.0",
+    "node-gyp": "^8.1.0"
+  },
+  "name": "pointsbot",
+  "version": "1.0.0",
+  "description": "bot to manage points for mfrp",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acomiskey/pointsbot.git"
+  },
+  "author": "A. Reid",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/acomiskey/pointsbot/issues"
+  },
+  "homepage": "https://github.com/acomiskey/pointsbot#readme",
+  "devDependencies": {
+    "eslint": "^7.30.0"
+  }
+}
