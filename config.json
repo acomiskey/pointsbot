@@ -1,12 +1,18 @@
 {
+	"guild_name": "the botzone",
+	
 	"admin_role": "admin",
 	"admin_console_channel": "admin-console",
+
 	"ic_prefix" : "ic-",
+
 	"level_alerts" : true,
 	"level_alerts_channel" : "level-ups",
 	"bot_command_channel" : "bot-commands",
+
 	"thread_input_channel" : "thread-submission",
 	"thread_processing_channel" : "thread-processing",
+
 	"ic_points_cooldown": 60000,
 	"minpoints": 1,
 	"maxpoints": 3

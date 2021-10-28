@@ -12,15 +12,14 @@ const client = new Discord.Client();
 client.commands = new Discord.Collection();
 
 dotenv.config();
-const iccooldown = config.ic_points_cooldown;
 const chartable = new SQLite('./chartable.sqlite');
 
-//const commandFiles = fs.readdirSync('./commands').filter(file=>file.endsWith('.js'));
-/*for (const file of commandFiles)
+const commandFiles = fs.readdirSync('./commands').filter(file=>file.endsWith('.js'));
+for (const file of commandFiles)
     {
-        const command = require("./commands/${file}");
+        const command = require(`./commands/${file}`);
         client.commands.set(command.name, command);
-    }*/
+    }
 
 ///FUNCTIONALITY///
 
@@ -86,7 +85,7 @@ client.on('message', message => {
                     cooldown : now
                 }
                 client.newChar.run(character);
-                console.log("\nnew cooldown time for "+message.author.username+" is "+now);
+                console.log("new cooldown time for "+message.author.username+" is "+now);
             }
         }
         return;
