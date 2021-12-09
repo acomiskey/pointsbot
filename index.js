@@ -29,7 +29,7 @@ client.on("ready", () => {
     //open the existing character points database
     const ctable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'characters';").get();          //all characters
     const ttable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'threads';").get();             //all unprocessed threads
-    const tmtable = pointsdata.prepare("SELECT count (*) FROM sqlite_master WHERE type='table' AND name = 'threadmembers';").get();     //all characters in unprocessed threads
+    const tmtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'threadmembers';").get();     //all characters in unprocessed threads
     const stable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'servers';").get();             //all affiliate servers where this bot operates
     const mtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'moderators';").get();          //all character accounts with moderator status
 
@@ -49,36 +49,6 @@ client.on("ready", () => {
         pointsdata.pragma("journal_mode = wal");
     }
 
-    if(!ttable['count(*)'])
-    {
-        //THREAD VARIABLES:
-        // id: eight-digit number, incremental
-        // wordcount: total wordcount of all characters in the thread
-        // type: type of thread; ie, the amount of points it's worth
-        // location: foreign key, id of associated server
-        // status: processing status, one of:
-        //      PENDING: the thread is awaiting moderator approval
-        //      ERROR: the thread has some issue that needs to be fixed by a participant
-        //      APPROVED: the thread has been approved by a moderator, and points have been disbursed
-        //      DENIED: the thread has been permanently denied by a moderator
-        pointsdata.prepare("CREATE TABLE threads (id TEXT PRIMARY KEY, wordcount INTEGER, type TEXT, location TEXT NOT NULL, FOREIGN KEY(location) REFERENCES servers(id), status TEXT);").run();
-        pointsdata.prepare("CREATE UNIQUE INDEX idx_charid ON threads (id);").run();
-        pointsdata.pragma("synchronous = 1");
-        pointsdata.pragma("journal_mode = wal");
-    }
-
-    if(!tmtable['count(*)']) 
-    {
-        //THREADMEMBERS VARIABLES:
-        //relational table that links threads with members
-        // threadid: foreign key, id of associated thread
-        // charid: foreign key, id of associated character
-        pointsdata.prepare("CREATE TABLE threadmembers (threadid TEXT NOT NULL, charid TEXT NOT NULL, FOREIGN KEY(threadid) REFERENCES threads(id), FOREIGN KEY(charid) REFERENCES characters(id));").run();
-        pointsdata.prepare("CREATE INDEX idx_threadid ON threadmembers (threadid);").run();
-        pointsdata.pragma("synchronous = 1");
-        pointsdata.pragma("journal_mode = wal");
-    }
-
     if(!stable['count(*)']) 
     {
         //SERVER VARIABLES: 
@@ -90,7 +60,7 @@ client.on("ready", () => {
         //      APPROVED: this is a server where the bot has been invited and can process threads accordingly
         //      DENIED: this is a server where the bot has been invited, but is not permitted to process threads
         pointsdata.prepare("CREATE TABLE servers (id TEXT PRIMARY KEY, name TEXT, ownerid TEXT, status TEXT);").run();
-        pointsdata.prepare("CREATE UNIQUE INDEX idx_serverid servers (id);").run();
+        pointsdata.prepare("CREATE UNIQUE INDEX idx_serverid ON servers (id);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
     }
@@ -108,10 +78,41 @@ client.on("ready", () => {
         pointsdata.pragma("journal_mode = wal");
     }
 
+    if(!ttable['count(*)'])
+    {
+        //THREAD VARIABLES:
+        // id: eight-digit number, incremental
+        // wordcount: total wordcount of all characters in the thread
+        // type: type of thread; ie, the amount of points it's worth
+        // location: foreign key, id of associated server
+        // status: processing status, one of:
+        //      PENDING: the thread is awaiting moderator approval
+        //      ERROR: the thread has some issue that needs to be fixed by a participant
+        //      APPROVED: the thread has been approved by a moderator, and points have been disbursed
+        //      DENIED: the thread has been permanently denied by a moderator
+        pointsdata.prepare("CREATE TABLE threads (id TEXT PRIMARY KEY, wordcount INTEGER, type TEXT, location TEXT NOT NULL, status TEXT, nonmember TEXT);").run();
+        pointsdata.prepare("CREATE UNIQUE INDEX idx_charid ON threads (id);").run();
+        pointsdata.pragma("synchronous = 1");
+        pointsdata.pragma("journal_mode = wal");
+    }
+
+    if(!tmtable['count(*)']) 
+    {
+        //THREADMEMBERS VARIABLES:
+        //relational table that links threads with members
+        // threadid: foreign key, id of associated thread
+        // charid: foreign key, id of associated character
+        // wordcount: word count of this character in this thread
+        pointsdata.prepare("CREATE TABLE threadmembers (threadid TEXT NOT NULL, charid TEXT NOT NULL, wordcount INTEGER NOT NULL);").run();
+        pointsdata.prepare("CREATE INDEX idx_threadid ON threadmembers (threadid);").run();
+        pointsdata.pragma("synchronous = 1");
+        pointsdata.pragma("journal_mode = wal");
+    }
+
     //character table
     client.getChar = pointsdata.prepare("SELECT * FROM characters WHERE id = ?;");
     client.newChar = pointsdata.prepare("INSERT OR REPLACE INTO characters (id, points, level, cooldown, patron, faction) VALUES (@id, @points, @level, @cooldown, @patron, @faction);");
-    client.deleteChar = pointsdata.prepare("DELETE * FROM characters WHERE id = ?, DELETE * FROM threadmembers WHERE charid = ?");
+    client.deleteChar = pointsdata.prepare("DELETE FROM characters WHERE id = ?;");
     client.setCooldown = pointsdata.prepare("INSERT OR REPLACE INTO characters (id, cooldown) VALUES (@id, @cooldown);");
     client.setPoints = pointsdata.prepare("INSERT OR REPLACE INTO characters (id, points) VALUES (@id, @points);");
 
@@ -119,11 +120,12 @@ client.on("ready", () => {
     client.getServer = pointsdata.prepare("SELECT * FROM servers WHERE id = ?;");
     client.newServer = pointsdata.prepare("INSERT OR REPLACE INTO servers(id, name, ownerid, status) VALUES (@id, @name, @ownerid, @status);");
     client.getServersByOwner = pointsdata.prepare("SELECT * FROM servers WHERE ownerid = ?;");
-    client.deleteServer = pointsdata.prepare("DELETE * FROM servers WHERE id = ?;");
+    client.deleteServer = pointsdata.prepare("DELETE FROM servers WHERE id = ?;");
 
     //thread table
 
     //threadmembers table
+    client.deleteCharFromThreads = pointsdata.prepare("DELETE FROM threadmembers WHERE charid = ?;");
 
     //moderators table
 
@@ -134,69 +136,58 @@ client.on("guildCreate", guild => //when this bot is invited to a new server
 {
     if(guild.id == config.guild_id) //if this is server prime
     {
-        guild.channels.get(admin_console).send("BITIBOT ONLINE! Hello, world!");
+        guild.channels.cache.get(admin_console).send("BITIBOT ONLINE! Hello, world!");
     }
     else                            //add the affiliate server as pending to the database
     {
-        let found = 0;
-        guild.channels.cache.map((c) =>
+
+        let owner = client.getChar.run(guild.owner.id);
+        if(!owner)
         {
-            if(found === 0)
-            {
-                if(channel.type === "text")
+            guild.systemChannel.send("BITIBOT ONLINE! It looks like this server is not owned by an active member of the primary server. This server cannot be validated as an affiliate.");
+            guild.leave();
+        }
+
+        else
+        {
+            guild.systemChannel.send("BITIBOT ONLINE! This is not my primary server. I will let the admins know that this server needs to be validated. Please stand by!");
+            let server = 
                 {
-                    if(channel.permissionsFor(client.user).has("VIEW_CHANNEL") && channel.permissionsFor(client.user).has("SEND_MESSAGES"))
-                    {
-                        let owner = client.getChar.run(guild.owner.id);
-                        if(!owner)
-                        {
-                            channel.send("BITIBOT ONLINE! It looks like this server is not owned by an active member of the primary server. This server cannot be validated as an affiliate.");
-                            guild.leave();
-
-                        }
-                        else
-                        {
-                            channel.send("BITIBOT ONLINE! This is not my primary server. I will let the admins know that this server needs to be validated. Please stand by!");
-                            let server = 
-                            {
-                                id: guild.id,
-                                name: guild.name,
-                                ownerid: guild.owner.id,
-                                status: "PENDING"
-                            }
-                            client.newServer.run(server);
-                            client.channels.get(config.admin_log).send("I was just added to "+guild.name+", with server id " + guild.id+ ". If this is a valid affiliate server, please confirm it with "+config.prefix+"confirm [server id]");
-                        }
-
-                        found = 1;
-                    }
+                    id: guild.id,
+                    name: guild.name,
+                    ownerid: guild.owner.id,
+                    status: "PENDING"
                 }
-            }
-        });
+            client.newServer.run(server);
+            client.channels.cache.get(config.admin_log).send("I was just added to "+guild.name+", with server id " + guild.id+ ". If this is a valid affiliate server, please confirm it with "+config.prefix+"confirm [server id]");
+        }
     }
 });
 
-client.on('messageCreate', message => {
+client.on('message', message => {
 
     if(message.author.bot) return;                      //make sure not sent by other bot/self
     if(!message.content.startsWith(config.prefix))      //make sure message is not command
     {
+        console.log("this is not a command!");
         if(message.guild.id != config.guild_id) return; //make sure message is in prime server
         if(ValidIC(message.channel))                    //make sure message is in valid IC channel
         {
+            console.log("this is a valid IC channel!");
             let character = client.getChar.get(message.author.id);
             const now = Date.now();
             const addition = Math.floor(Math.random() * (config.maxpoints - config.minpoints) + config.minpoints);
 
             if(character)                               //if author is in the points database
             {
+                console.log("this character is in the points database!");
                 if((now - character.cooldown >= config.ic_points_cooldown)) // and if not cooldown
                 {
                     character.points += addition;
                     character.cooldown = now;
                     client.setCooldown.run(character);
                     console.log("new cooldown time for "+message.author.username+" is "+now+". Next message in "+ config.ic_points_cooldown + " miliseconds.\n");
-                    client.setScore.run(character);
+                    client.setPoints.run(character);
                 }
             }
         }
@@ -209,7 +200,8 @@ client.on('messageCreate', message => {
     //thread compilation can occur in any server that the bot is a member of
     //admin commands must be performed in the admin console channel
 
-    const args = message.content.slice(process.env.PREFIX.length).trim().split(/ +/);
+    console.log("this is a command!\n");
+    const args = message.content.slice(config.prefix.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
 
     if(!client.commands.has(commandName)) 
@@ -220,11 +212,12 @@ client.on('messageCreate', message => {
 
     try 
     {
+        console.log("i'm executing the command!");
         client.commands.get(commandName).execute(message, args);
     }
     catch (error)
     {
-        console.error(error);
+        console.log(error);
         message.reply('I encountered an unknown error trying to execute '+ commandName + ". Please contact your server admin.");
     }
 });
@@ -245,7 +238,7 @@ client.on('guildMemberAdd', member =>
                 }
 
         client.newChar.run(character);
-        client.channels.get(config.admin_log).send("New character "+ member.user.tag+" has been added to the database. Please add their patronage using the command "+ config.prefix+"patron.");
+        client.channels.cache.get(config.admin_log).send("New character "+ member.user.tag+" has been added to the database. Please add their patronage using the command "+ config.prefix+"patron.");
     }
     return;
 });
@@ -259,18 +252,19 @@ client.on('guildMemberRemove', member =>
         let character = client.getChar.get(member.user.id);
         if(!character)  //this should literally never happen, but just in case, note when a rando leaves the server
         {
-            client.channels.get(config.admin_log).send("A character who was not registered in the points database ("+member.user.id+") just left the server.");
+            client.channels.cache.get(config.admin_log).send("A character who was not registered in the points database ("+member.user.id+") just left the server.");
             return;
         }
 
         client.deleteChar.run(character.id); //remove the character from the points database
-        client.channels.get(config.admin_log).send("Character "+ member.user.tag+ " has left the server. They had "+ character.points+" points.");
+        client.deleteCharFromThreads.run(character.id);
+        client.channels.cache.get(config.admin_log).send("Character "+ member.user.tag+ " has left the server. They had "+ character.points+" points.");
 
         let servers = client.getServersByOwner.all(member.id); //leave any affiliate servers that this character owns
         for(var c = 0; c < servers.length; c++)
         {
-            client.guilds.get(server[c].id).leave();
-            client.channels.get(config.admin_log).send("Leaving server "+ servers[c].name +" because it was owned by "+ member.user.tag+".");
+            client.guilds.cache.get(server[c].id).leave();
+            client.channels.cache.get(config.admin_log).send("Leaving server "+ servers[c].name +" because it was owned by "+ member.user.tag+".");
             client.deleteServer.run(server[c].id);
         }
         
@@ -282,25 +276,23 @@ client.login(process.env.TOKEN);
 function ValidIC(channel)
 {
     const category = channel.parent;
-    var strigifiedcats = JSON.stringify(config.ic_categories);
-    var stringifiedchans = JSON.stringify(config.misc_ic_channels);
     var isvalid = false;
 
-    $.each(JSON.parse(strigifiedcats) , function (key, value)
+    for(var i in config.ic_categories)
     {
-        if(category.id == value)
+        if(category.id == config.ic_categories[i])
         {
             isvalid = true;
         }
-    });
+    }
 
-    $.each(JSON.parse(stringifiedchans), function(key, value)
+    for(var j in config.misc_ic_channels)
     {
-        if(channel.id == value)
+        if(channel.id == config.misc_ic_channels[j])
         {
             isvalid = true;
         }
-    });
+    }
 
     return isvalid;
 }
