@@ -1,13 +1,21 @@
 {
-	"admin_role": "admin",
-	"admin_console_channel": "admin-console",
-	"ic_prefix" : "ic-",
+	"guild_id": "818947739168538634",
+	
+	"admins": [ "151498900404961281" ],
+	"admin_log": "906200510812532766",
+	"admin_console": "906213945457664060",
+
+	"ic_categories" : [ "906201202625237013" ], 
+	"misc_ic_channels" : [ ],
+
 	"level_alerts" : true,
-	"level_alerts_channel" : "level-ups",
-	"bot_command_channel" : "bot-commands",
-	"thread_input_channel" : "thread-submission",
-	"thread_processing_channel" : "thread-processing",
+	"level_alerts_channel" : "906201060673208361",
+	"bot_command_channel" : "906201386113462352",
+	"thread_alerts_channel" : "906200967815528498",
+
 	"ic_points_cooldown": 60000,
 	"minpoints": 1,
-	"maxpoints": 3
+	"maxpoints": 3,
+
+	"prefix" : "biti."
 }
