@@ -23,7 +23,7 @@ module.exports =
             points : 0,
             cooldown : 0,
             level: 0,
-            patron : args[2],
+            patron : args[1],
             faction : "NONE"
         }
 

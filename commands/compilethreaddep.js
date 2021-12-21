@@ -5,7 +5,7 @@ const pointsdata = new SQLite('./pointsdata.sqlite');
 
 module.exports = 
 {
-    name: "compilethread",
+    name: "compilethreaddep",
     description: "compile a thread",
     execute(message, args)
     {
@@ -44,16 +44,16 @@ module.exports =
 
         const getMessages = () =>
         {
-            message.channel.messages.fetch(args[0], { force: true })
+            message.channel.messages.fetch(args[0])
                 .then((message1) => 
                 {
                     firstmsg = message1;
-                    console.log("starting message is: " + firstmsg.cleanContent);
-                    message.channel.messages.fetch(args[1], {force: true})
+                    console.log(firstmsg.cleanContent);
+                    message.channel.messages.fetch(args[1])
                     .then((message2) =>
                     {
                         secondmsg = message2;
-                        console.log("ending message is: " + secondmsg.cleanContent);
+                        console.log(secondmsg.cleanContent);
                         if(firstmsg.createdTimestamp >= secondmsg.createdTimestamp) //make sure in chronological order
                         {
                             message.reply("ERROR: The first message was posted after the second message. Please make sure your command is in this format:"+config.prefix+"compilethread [id of first message] [id of last message] [thread type]");
@@ -64,7 +64,7 @@ module.exports =
 
                         const processMessage = (current) =>
                         {
-                            console.log("at the beginning of processMessage, content is:" + current.content);
+                            console.log(current.content);
                             const words = current.cleanContent.trim().split(/ +/);  //separate and count words
                             totalwords += words.length;
 
@@ -88,37 +88,13 @@ module.exports =
                             if(currentmsg.id === secondmsg.id)
                             {
                                 console.log("Processed all messages in this thread. Breaking the loop!");
-                                wordcounts.forEach((values, keys) => 
-                                {
-                                    const chardata =
-                                    {
-                                        threadid : message.id,
-                                        charid : keys,
-                                        wordcount : values
-                                    };
-
-                                    pointsdata.prepare("INSERT OR REPLACE INTO threadmembers (threadid, charid, wordcount) VALUES (@threadid, @charid, @wordcount);").run(chardata);
-                                });
-
-                                const threaddata = 
-                                {
-                                    id : message.id,
-                                    wordcount : totalwords,
-                                    type : args[3],
-                                    location : message.guild.id,
-                                    status : "PENDING",
-                                    nonmember : nmember
-                                };
-                                pointsdata.prepare("INSERT OR REPLACE INTO threads (id, wordcount, type, location, status, nonmember) VALUES (@id, @wordcount, @type, @location, @status, @nonmember);").run(threaddata);
-
-                                message.reply("Your thread has been compiled and is currently PENDING. It had "+wordcounts.size+" participants and a total word count of " + totalwords+ ".");
                                 return;
                             }
                             else
                             { 
-                                currentmsg.channel.messages.fetch( {limit: 1, after: current.id, force: true} )
-                                    .then(messages => { console.log('retrieved ' + messages.size + ' messages'); currentmsg = messages.first(); console.log(currentmsg.content); processMessage(currentmsg);})
-                                    //.then(nextmessage => {currentmsg = nextmessage; console.log(currentmsg.content); processMessage(currentmsg);})
+                                currentmsg.channel.messages.fetch( secondmsg.id )
+                                    //.then(messages => { console.log('retrieved' + messages.size + 'messages'); currentmsg = messages[0]; console.log(currentmsg.content); processMessage(currentmsg);})
+                                    .then(nextmessage => {currentmsg = nextmessage; console.log(currentmsg.content); processMessage(currentmsg);})
                                     .catch(console.error);
                             }
                         }
@@ -147,5 +123,30 @@ module.exports =
             console.log("error with location of messages relative to command");
             return;
         }
+
+        wordcounts.forEach((values, keys) => 
+        {
+            const chardata =
+            {
+                threadid : message.id,
+                charid : keys,
+                wordcount : values
+            };
+
+            pointsdata.prepare("INSERT OR REPLACE INTO threadmembers (threadid, charid, wordcount) VALUES (@threadid, @charid, @wordcount);").run(chardata);
+        });
+
+        const threaddata = 
+        {
+            id : message.id,
+            wordcount : totalwords,
+            type : args[3],
+            location : message.guild.id,
+            status : "PENDING",
+            nonmember : nmember
+        };
+        pointsdata.prepare("INSERT OR REPLACE INTO threads (id, wordcount, type, location, status, nonmember) VALUES (@id, @wordcount, @type, @location, @status, @nonmember);").run(threaddata);
+        message.reply("Your thread has been compiled and is currently PENDING. It had "+wordcounts.size+" participants ( " + nmember + ") and a total word count of " + totalwords+ ".");
+        return;
     }
 };
