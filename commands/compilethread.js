@@ -28,6 +28,7 @@ module.exports =
             }
         }
        
+        //CHECK IF TYPE IS GOOD HERE
 
         if(args.length != 3)  //make sure correct # of arguments
         {
@@ -48,12 +49,12 @@ module.exports =
                 .then((message1) => 
                 {
                     firstmsg = message1;
-                    console.log("starting message is: " + firstmsg.cleanContent);
+                    //console.log("starting message is: " + firstmsg.cleanContent);
                     message.channel.messages.fetch(args[1], {force: true})
                     .then((message2) =>
                     {
                         secondmsg = message2;
-                        console.log("ending message is: " + secondmsg.cleanContent);
+                        //console.log("ending message is: " + secondmsg.cleanContent);
                         if(firstmsg.createdTimestamp >= secondmsg.createdTimestamp) //make sure in chronological order
                         {
                             message.reply("ERROR: The first message was posted after the second message. Please make sure your command is in this format:"+config.prefix+"compilethread [id of first message] [id of last message] [thread type]");
@@ -64,14 +65,17 @@ module.exports =
 
                         const processMessage = (current) =>
                         {
-                            console.log("at the beginning of processMessage, content is:" + current.content);
+                            //console.log("at the beginning of processMessage, content is:" + current.content);
                             const words = current.cleanContent.trim().split(/ +/);  //separate and count words
                             totalwords += words.length;
 
                             if(wordcounts.has(current.author.id))                   //if user already exists in map, add this wordcount to total
                             {
                                 const currentcount = wordcounts.get(current.author.id);
-                                wordcounts.set(current.author.id, currentcount+words.length);
+                                currentcount[0] += words.length;
+                                currentcount[1] += 1;
+
+                                wordcounts.set(current.author.id, currentcount);
                             }
                             else //otherwise, add them to the map
                             {
@@ -82,7 +86,12 @@ module.exports =
                                     nmember += current.author.tag;
                                     nmember += " ";
                                 }
-                                wordcounts.set(currentmsg.author.id, words.length);
+
+                                const counts = [];
+                                counts[0] = words.length;
+                                counts[1] = 1;
+
+                                wordcounts.set(currentmsg.author.id, counts);
                             }
 
                             if(currentmsg.id === secondmsg.id)
@@ -92,24 +101,26 @@ module.exports =
                                 {
                                     const chardata =
                                     {
-                                        threadid : message.id,
+                                        threadid : message1.id,
                                         charid : keys,
-                                        wordcount : values
+                                        wordcount : values[0],
+                                        postcount : values[1]
                                     };
 
-                                    pointsdata.prepare("INSERT OR REPLACE INTO threadmembers (threadid, charid, wordcount) VALUES (@threadid, @charid, @wordcount);").run(chardata);
+                                    pointsdata.prepare("INSERT INTO threadmembers (threadid, charid, wordcount, postcount) VALUES (@threadid, @charid, @wordcount, @postcount);").run(chardata);
                                 });
 
                                 const threaddata = 
                                 {
-                                    id : message.id,
+                                    id : message1.id,
+                                    endid : message2.id,
                                     wordcount : totalwords,
                                     type : args[3],
                                     location : message.guild.id,
                                     status : "PENDING",
                                     nonmember : nmember
                                 };
-                                pointsdata.prepare("INSERT OR REPLACE INTO threads (id, wordcount, type, location, status, nonmember) VALUES (@id, @wordcount, @type, @location, @status, @nonmember);").run(threaddata);
+                                pointsdata.prepare("INSERT OR REPLACE INTO threads (id, endid, wordcount, type, location, status, nonmember) VALUES (@id, @endid, @wordcount, @type, @location, @status, @nonmember);").run(threaddata);
 
                                 message.reply("Your thread has been compiled and is currently PENDING. It had "+wordcounts.size+" participants and a total word count of " + totalwords+ ".");
                                 return;
@@ -117,8 +128,7 @@ module.exports =
                             else
                             { 
                                 currentmsg.channel.messages.fetch( {limit: 1, after: current.id, force: true} )
-                                    .then(messages => { console.log('retrieved ' + messages.size + ' messages'); currentmsg = messages.first(); console.log(currentmsg.content); processMessage(currentmsg);})
-                                    //.then(nextmessage => {currentmsg = nextmessage; console.log(currentmsg.content); processMessage(currentmsg);})
+                                    .then(messages => { console.log('retrieved ' + messages.size + ' messages'); currentmsg = messages.first(); processMessage(currentmsg);})
                                     .catch(console.error);
                             }
                         }

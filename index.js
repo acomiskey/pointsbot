@@ -29,7 +29,8 @@ client.on("ready", () => {
     //open the existing character points database
     const ctable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'characters';").get();          //all characters
     const ttable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'threads';").get();             //all unprocessed threads
-    const tmtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'threadmembers';").get();     //all characters in unprocessed threads
+    const tmtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'threadmembers';").get();      //all characters in unprocessed threads
+    const typetable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'threadtypes';").get();    //all valid thread types + their point  values
     const stable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'servers';").get();             //all affiliate servers where this bot operates
     const mtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'moderators';").get();          //all character accounts with moderator status
 
@@ -81,7 +82,7 @@ client.on("ready", () => {
     if(!ttable['count(*)'])
     {
         //THREAD VARIABLES:
-        // id: eight-digit number, incremental
+        // id: messageID of first message in the thread
         // wordcount: total wordcount of all characters in the thread
         // type: type of thread; ie, the amount of points it's worth
         // location: foreign key, id of associated server
@@ -90,7 +91,7 @@ client.on("ready", () => {
         //      ERROR: the thread has some issue that needs to be fixed by a participant
         //      APPROVED: the thread has been approved by a moderator, and points have been disbursed
         //      DENIED: the thread has been permanently denied by a moderator
-        pointsdata.prepare("CREATE TABLE threads (id TEXT PRIMARY KEY, wordcount INTEGER, type TEXT, location TEXT NOT NULL, status TEXT, nonmember TEXT);").run();
+        pointsdata.prepare("CREATE TABLE threads (id TEXT PRIMARY KEY, endid TEXT NOT NULL, wordcount INTEGER, type TEXT, location TEXT NOT NULL, status TEXT, nonmember TEXT);").run();
         pointsdata.prepare("CREATE UNIQUE INDEX idx_charid ON threads (id);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
@@ -103,8 +104,27 @@ client.on("ready", () => {
         // threadid: foreign key, id of associated thread
         // charid: foreign key, id of associated character
         // wordcount: word count of this character in this thread
-        pointsdata.prepare("CREATE TABLE threadmembers (threadid TEXT NOT NULL, charid TEXT NOT NULL, wordcount INTEGER NOT NULL);").run();
+        pointsdata.prepare("CREATE TABLE threadmembers (threadid TEXT NOT NULL, charid TEXT NOT NULL, wordcount INTEGER NOT NULL, postcount INTEGER NOT NULL);").run();
         pointsdata.prepare("CREATE INDEX idx_threadid ON threadmembers (threadid);").run();
+        pointsdata.pragma("synchronous = 1");
+        pointsdata.pragma("journal_mode = wal");
+    }
+
+    if(!typetable['count(*)']) 
+    {
+        //THREADTYPE VARIABLES:
+        // typename: the name of this type
+        // description: explanation of this thread type
+        // minwordcount: minimum wordcount to qualify for points on this thread type
+        // minpostcount: minimum post count to qualify for points on this type of thread
+        // value: points value of this thread type
+        // bonusthreshold: wordcount threshold at which characters gain bonus points
+        // bonusvalue: number of bonus points characters receive per [bonusthreshold] words written over [minwordcount]
+        // status: whether this type of thread is currently active, one of:
+        //      ACTIVE: new threads can be compiled with this type
+        //      RETIRED: new threads cannot be compiled with this type anymore
+        pointsdata.prepare("CREATE TABLE threadtypes (typename TEXT PRIMARY KEY, description TEXT, minwordcount INTEGER, minpostcount INTEGER, value INTEGER, bonusthreshold INTEGER, bonusvalue INTEGER, status TEXT);").run();
+        pointsdata.prepare("CREATE UNIQUE INDEX idx_tyt_id ON threadtypes (typename));").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
     }

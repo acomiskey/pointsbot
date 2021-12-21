@@ -17,5 +17,6 @@
 	"minpoints": 1,
 	"maxpoints": 3,
 
-	"prefix" : "biti."
+	"prefix" : "biti.",
+	"debug_commands_enabled" : true
 }
