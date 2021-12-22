@@ -24,7 +24,7 @@ module.exports =
             return;
         }
 
-        const isgood = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = '?';").get(args[0]);
+        const isgood = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = \'" + args[0] + "\';").get();
 
         if(!isgood["count(*)"])
         {
@@ -32,7 +32,38 @@ module.exports =
             return;
         }
 
+        var output = "";
+        const data = pointsdata.prepare("SELECT * FROM " + args[0] + ";").all();
+
+        data.forEach(row => 
+            {
+                if(args[0] === "characters")
+                {
+                    output = output + row.id + " " + row.points + " " + row.level + " " + row.cooldown + " " + row.patron + " " + row.faction + "\n";
+                }
+                else if (args[0] === "threads")
+                {
+                    output = output + row.id + " " + row.endid + " " + row.wordcount + " " + row.type + " " + row.location + " " + row.status + " " + row.nonmember + "\n";
+                }
+                else if(args[0] === "threadmembers")
+                {
+                    output = output + row.threadid + " " + row.charid + " " + row.wordcount + " " + row.postcount + "\n";
+                }
+                else if (args[0] === "threadtypes")
+                {
+                    output = output + row.typename + " " + row.description + "\n";
+                }
+                else if (args[0] === "servers")
+                {
+                    output = output + row.id + " " + row.name + " " + row.ownerid + " " + row.status + "\n";
+                }
+                else if (args[0] === "moderators")
+                {
+                    output = output + row.id + " " + row.modname + " " + row.realname + "\n";
+                }
+                else output = "error with table type";
+            });
         //PRINT STUFF HERE
-        message.reply(/*stuff to be printed*/);
+        message.reply(output);
     }
 }
