@@ -124,7 +124,7 @@ client.on("ready", () => {
         //      ACTIVE: new threads can be compiled with this type
         //      RETIRED: new threads cannot be compiled with this type anymore
         pointsdata.prepare("CREATE TABLE threadtypes (typename TEXT PRIMARY KEY, description TEXT, minwordcount INTEGER, minpostcount INTEGER, value INTEGER, bonusthreshold INTEGER, bonusvalue INTEGER, status TEXT);").run();
-        pointsdata.prepare("CREATE UNIQUE INDEX idx_tyt_id ON threadtypes (typename));").run();
+        pointsdata.prepare("CREATE INDEX idx_tyt_id ON threadtypes (typename);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
     }

@@ -9,11 +9,13 @@ module.exports =
     description: "check a character's point total.",
     execute(message, args)
     {
-        if(message.channel.id != config.admin_console) //break if not in the admin console
+        if(message.channel.id != config.bot_command_channel) //break if not in the admin console
             return;
 
         if(args.length === 0)
         {
+
+            console.log("no arguments, self data!");
             const isgood = pointsdata.prepare("SELECT count(*) FROM characters WHERE id = ?;").get(message.author.id);
 
             if(!isgood["count(*)"])

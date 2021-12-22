@@ -122,7 +122,14 @@ module.exports =
                                 };
                                 pointsdata.prepare("INSERT OR REPLACE INTO threads (id, endid, wordcount, type, location, status, nonmember) VALUES (@id, @endid, @wordcount, @type, @location, @status, @nonmember);").run(threaddata);
 
-                                message.reply("Your thread has been compiled and is currently PENDING. It had "+wordcounts.size+" participants and a total word count of " + totalwords+ ".");
+                                var reply = "Your thread has been compiled and is currently PENDING. It had "+wordcounts.size+" participants and a total of " + totalwords + " words.";
+                                reply += "\nParticipants are: ";
+
+                                wordcounts.forEach((values, keys) => 
+                                {
+                                    reply = reply + "\n" + keys + " post count: " + values[1] + " wordcount: " + values [0];
+                                });
+                                message.reply(reply);
                                 return;
                             }
                             else
