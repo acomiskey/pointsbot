@@ -17,6 +17,9 @@
 	"minpoints": 1,
 	"maxpoints": 3,
 
+	"numranks": 6,
+	"ranks": [ 750, 1500, 3000, 6000, 12000, 24000 ],
+
 	"prefix" : "biti.",
 	"debug_commands_enabled" : true
 }

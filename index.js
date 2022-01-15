@@ -33,18 +33,25 @@ client.on("ready", () => {
     const typetable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'threadtypes';").get();    //all valid thread types + their point  values
     const stable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'servers';").get();             //all affiliate servers where this bot operates
     const mtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'moderators';").get();          //all character accounts with moderator status
+    const invtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'inventories';").get();       //all inventory items of all charcters
+    const ittable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'items';").get();              //all possible items
+    const rtable = pointsdata.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'ranks';").get();               //all ranks
 
     //if the table doesn't exist, make a new one
     if(!ctable['count(*)']) 
     {
         //CHARACTER VARIABLES:
         // id: discord user id
+        // name: the character's name as it appears on their application
         // points: points generated from activity/threads
-        // level: character's rank
+        // currentrank: name of this character's rank
+        // rankupready: whether a rankup is ready, one of:
+        //      1: rankup is ready
+        //      0: rankup is not ready
         // cooldown: time until character can generate points for their posts again
         // patron: character's patron
         // faction: character's faction, if any
-        pointsdata.prepare("CREATE TABLE characters (id TEXT PRIMARY KEY, points INTEGER, level INTEGER, cooldown INTEGER, patron TEXT, faction TEXT);").run();
+        pointsdata.prepare("CREATE TABLE characters (id TEXT PRIMARY KEY, name TEXT, points INTEGER, currentrank TEXT, rankupready INTEGER, cooldown INTEGER, patron TEXT, faction TEXT);").run();
         pointsdata.prepare("CREATE UNIQUE INDEX idx_ct_id ON characters (id);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
@@ -60,7 +67,9 @@ client.on("ready", () => {
         //      PENDING: this is a server where the bot has been invited but a moderator has not approved it
         //      APPROVED: this is a server where the bot has been invited and can process threads accordingly
         //      DENIED: this is a server where the bot has been invited, but is not permitted to process threads
-        pointsdata.prepare("CREATE TABLE servers (id TEXT PRIMARY KEY, name TEXT, ownerid TEXT, status TEXT);").run();
+        // link: an invite link to this server
+        // postid: the id of the post that lists this server in the main server's directory
+        pointsdata.prepare("CREATE TABLE servers (id TEXT PRIMARY KEY, name TEXT, ownerid TEXT NOT NULL, status TEXT, link TEXT, postid TEXT);").run();
         pointsdata.prepare("CREATE UNIQUE INDEX idx_serverid ON servers (id);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
@@ -91,6 +100,7 @@ client.on("ready", () => {
         //      ERROR: the thread has some issue that needs to be fixed by a participant
         //      APPROVED: the thread has been approved by a moderator, and points have been disbursed
         //      DENIED: the thread has been permanently denied by a moderator
+        // nonmember: a list of all non-members in the thread, separated by spaces
         pointsdata.prepare("CREATE TABLE threads (id TEXT PRIMARY KEY, endid TEXT NOT NULL, wordcount INTEGER, type TEXT, location TEXT NOT NULL, status TEXT, nonmember TEXT);").run();
         pointsdata.prepare("CREATE UNIQUE INDEX idx_charid ON threads (id);").run();
         pointsdata.pragma("synchronous = 1");
@@ -104,6 +114,7 @@ client.on("ready", () => {
         // threadid: foreign key, id of associated thread
         // charid: foreign key, id of associated character
         // wordcount: word count of this character in this thread
+        // postcount: post count of this character in this thread
         pointsdata.prepare("CREATE TABLE threadmembers (threadid TEXT NOT NULL, charid TEXT NOT NULL, wordcount INTEGER NOT NULL, postcount INTEGER NOT NULL);").run();
         pointsdata.prepare("CREATE INDEX idx_threadid ON threadmembers (threadid);").run();
         pointsdata.pragma("synchronous = 1");
@@ -118,13 +129,52 @@ client.on("ready", () => {
         // minwordcount: minimum wordcount to qualify for points on this thread type
         // minpostcount: minimum post count to qualify for points on this type of thread
         // value: points value of this thread type
-        // bonusthreshold: wordcount threshold at which characters gain bonus points
-        // bonusvalue: number of bonus points characters receive per [bonusthreshold] words written over [minwordcount]
         // status: whether this type of thread is currently active, one of:
         //      ACTIVE: new threads can be compiled with this type
         //      RETIRED: new threads cannot be compiled with this type anymore
-        pointsdata.prepare("CREATE TABLE threadtypes (typename TEXT PRIMARY KEY, description TEXT, minwordcount INTEGER, minpostcount INTEGER, value INTEGER, bonusthreshold INTEGER, bonusvalue INTEGER, status TEXT);").run();
+        pointsdata.prepare("CREATE TABLE threadtypes (typename TEXT PRIMARY KEY, description TEXT, minwordcount INTEGER, minpostcount INTEGER, value INTEGER, status TEXT);").run();
         pointsdata.prepare("CREATE INDEX idx_tyt_id ON threadtypes (typename);").run();
+        pointsdata.pragma("synchronous = 1");
+        pointsdata.pragma("journal_mode = wal");
+    }
+
+    if(!ittable['count(*)']) 
+    {
+        //ITEM VARIABLES:
+        // name: the item's name
+        // description: a brief description of the item
+        // isactive: whether characters can currently select this item on rankup, one of:
+        //      ACTIVE: characters cannot select this item on rankup
+        //      RETIRED: character CAN select this item on rankup
+        pointsdata.prepare("CREATE TABLE items (name TEXT PRIMARY KEY, description TEXT, isactive TEXT);").run();
+        pointsdata.prepare("CREATE UNIQUE INDEX idx_itt_id ON items (name);").run();
+        pointsdata.pragma("synchronous = 1");
+        pointsdata.pragma("journal_mode = wal");
+    }
+
+    if(!invtable['count(*)']) 
+    {
+        //INVENTORY VARIABLES:
+        // itemname: the name of the item or ability slot
+        //       ABILITY SLOT NAME FORMAT: "SLOT #", where # > 0 && # < 8
+        // ownerid: discord id of the item's owner
+        // islocked: whether this item is a locked ability slot, one of:
+        //       LOCKED: this item is a slot, and it's locked
+        //       UNLOCKED: this item is a slot, and it's unlocked
+        //       ITEM: this item is not a slot at all
+        pointsdata.prepare("CREATE TABLE inventories (itemname TEXT NOT NULL, ownerid TEXT NOT NULL, islocked TEXT NOT NULL);").run();
+        pointsdata.pragma("synchronous = 1");
+        pointsdata.pragma("journal_mode = wal");
+    }
+
+    if(!rtable['count(*)']) 
+    {
+        //RANK VARIABLES:
+        //name: the rank's name
+        //threshold: the threshold at which a character LEAVES that rank
+        //benefits: a brief description of benefits this rank confers
+        pointsdata.prepare("CREATE TABLE ranks (name TEXT PRIMARY KEY, threshold INTEGER NOT NULL, benefits TEXT);").run();
+        pointsdata.prepare("CREATE UNIQUE INDEX idx_ct_id ON ranks (name);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
     }
@@ -158,7 +208,7 @@ client.on("guildCreate", guild => //when this bot is invited to a new server
     {
         guild.channels.cache.get(admin_console).send("BITIBOT ONLINE! Hello, world!");
     }
-    else                            //add the affiliate server as pending to the database
+    else //await addserver command
     {
 
         let owner = client.getChar.run(guild.owner.id);
@@ -170,16 +220,7 @@ client.on("guildCreate", guild => //when this bot is invited to a new server
 
         else
         {
-            guild.systemChannel.send("BITIBOT ONLINE! This is not my primary server. I will let the admins know that this server needs to be validated. Please stand by!");
-            let server = 
-                {
-                    id: guild.id,
-                    name: guild.name,
-                    ownerid: guild.owner.id,
-                    status: "PENDING"
-                }
-            client.newServer.run(server);
-            client.channels.cache.get(config.admin_log).send("I was just added to "+guild.name+", with server id " + guild.id+ ". If this is a valid affiliate server, please confirm it with "+config.prefix+"confirm [server id]");
+            guild.systemChannel.send("BITIBOT ONLINE! This is not my primary server. You can now return to the primary server and run the addserver command in order to complete the registration process.");
         }
     }
 });
@@ -259,6 +300,8 @@ client.on('guildMemberAdd', member =>
 
         client.newChar.run(character);
         client.channels.cache.get(config.admin_log).send("New character "+ member.user.tag+" has been added to the database. Please add their patronage using the command "+ config.prefix+"patron.");
+
+        //TODO: create a new character's inventory
     }
     return;
 });
@@ -287,6 +330,9 @@ client.on('guildMemberRemove', member =>
             client.channels.cache.get(config.admin_log).send("Leaving server "+ servers[c].name +" because it was owned by "+ member.user.tag+".");
             client.deleteServer.run(server[c].id);
         }
+
+        //TODO: remove this character's inventory from the database
+        //TODO: remove this character from any pending threads
         
     }
 });
