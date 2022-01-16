@@ -146,7 +146,7 @@ client.on("ready", () => {
         // isactive: whether characters can currently select this item on rankup, one of:
         //      ACTIVE: characters cannot select this item on rankup
         //      RETIRED: character CAN select this item on rankup
-        pointsdata.prepare("CREATE TABLE items (name TEXT PRIMARY KEY, description TEXT, isactive TEXT);").run();
+        pointsdata.prepare("CREATE TABLE items (name TEXT PRIMARY KEY, isactive TEXT);").run();
         pointsdata.prepare("CREATE UNIQUE INDEX idx_itt_id ON items (name);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
