@@ -174,7 +174,7 @@ client.on("ready", () => {
         //threshold: the threshold at which a character LEAVES that rank
         //benefits: a brief description of benefits this rank confers
         pointsdata.prepare("CREATE TABLE ranks (name TEXT PRIMARY KEY, threshold INTEGER NOT NULL, benefits TEXT);").run();
-        pointsdata.prepare("CREATE UNIQUE INDEX idx_ct_id ON ranks (name);").run();
+        pointsdata.prepare("CREATE UNIQUE INDEX idx_rt_id ON ranks (name);").run();
         pointsdata.pragma("synchronous = 1");
         pointsdata.pragma("journal_mode = wal");
     }
@@ -244,7 +244,7 @@ client.on('message', message => {
                 console.log("this character is in the points database!");
                 if((now - character.cooldown >= config.ic_points_cooldown)) // and if not cooldown
                 {
-                    character.points += addition;
+                    character.points = parseInt(character.points) + parseInt(addition);
                     character.cooldown = now;
                     client.setCooldown.run(character);
                     console.log("new cooldown time for "+message.author.username+" is "+now+". Next message in "+ config.ic_points_cooldown + " miliseconds.\n");

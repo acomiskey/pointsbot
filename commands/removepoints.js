@@ -14,10 +14,17 @@ module.exports =
 
         if(args.length != 2)
         {
-            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"removepoints [userID] [points]");
+            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"removepoints @username [points]");
             return;
         }
-        const isgood = pointsdata.prepare("SELECT count(*) FROM characters WHERE id = ?;").get(args[0]);
+
+        const user = message.mentions.users.first();
+        if(user == null)
+        {
+            message.reply("ERROR: incorrect number or order of arguments. Please make sure your command is in this format:\n"+ config.prefix+"removepoints @username [points]");
+            return;
+        }
+        const isgood = pointsdata.prepare("SELECT count(*) FROM characters WHERE id = ?;").get(user.id);
 
         if(!isgood["count(*)"])
         {
@@ -25,8 +32,14 @@ module.exports =
             return;
         }
 
-        var character = pointsdata.prepare("SELECT * FROM characters WHERE id = ?;").get(args[0]);
-        character.points -= args[1];
+        if(isNaN(parseInt(args[1])))
+        {
+            message.reply("ERROR: incorrect number or order of arguments. Please make sure your command is in this format:\n"+ config.prefix+"addpoints @username [points]");
+            return;
+        }
+
+        var character = pointsdata.prepare("SELECT * FROM characters WHERE id = ?;").get(user.id);
+        character.points = parseInt(character.points) -  parseInt(args[1]);
 
         pointsdata.prepare("INSERT OR REPLACE INTO characters (id, points, level, cooldown, patron, faction) VALUES (@id, @points, @level, @cooldown, @patron, @faction);").run(character);
         message.reply("Removed " + args[1] + " points from character with id "+ args[0] + ", for a new total of " + character.points + ".");

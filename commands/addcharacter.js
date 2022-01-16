@@ -14,12 +14,19 @@ module.exports =
 
         if(args.length != 2)
         {
-            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"addcharacter [userID] [patronage]");
+            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"addcharacter @username [patronage]");
+            return;
+        }
+
+        const user = message.mentions.users.first();
+        if(user == null)
+        {
+            message.reply("ERROR: incorrect number or order of arguments. Please make sure your command is in this format:\n"+ config.prefix+"addcharacter @username [patronage]");
             return;
         }
         const character = 
         {
-            id : args[0],
+            id : user.id,
             points : 0,
             cooldown : 0,
             level: 0,

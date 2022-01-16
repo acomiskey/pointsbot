@@ -15,11 +15,18 @@ module.exports =
 
         if(args.length != 1)
         {
-            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"removecharacter [userID]");
+            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"removecharacter @username");
             return;
         }
 
-        const isgood = pointsdata.prepare("SELECT count(*) FROM characters WHERE id = ?;").get(args[0]);
+        const user = message.mentions.users.first();
+        if(user == null)
+        {
+            message.reply("ERROR: incorrect number or order of arguments. Please make sure your command is in this format:\n"+ config.prefix+"removecharacter @username");
+            return;
+        }
+
+        const isgood = pointsdata.prepare("SELECT count(*) FROM characters WHERE id = ?;").get(user.id);
 
         if(!isgood["count(*)"])
         {
@@ -27,10 +34,11 @@ module.exports =
             return;
         }
 
-        const characterdata = pointsdata.prepare("SELECT * FROM characters WHERE id = ?;").get(args[0]);
-        pointsdata.prepare("DELETE FROM characters WHERE id = ?;").run(args[0]);
-        pointsdata.prepare("DELETE FROM threadmembers WHERE charid = ?;").run(args[0]);
+        const characterdata = pointsdata.prepare("SELECT * FROM characters WHERE id = ?;").get(user.id);
+        pointsdata.prepare("DELETE FROM characters WHERE id = ?;").run(user.id);
+        pointsdata.prepare("DELETE FROM threadmembers WHERE charid = ?;").run(user.id);
 
-        message.reply("Removed character with ID "+ args[0] +". They had " + characterdata.points + " points.");
+        message.reply("Removed " + user.tag + ". They had " + characterdata.points + " points.");
+        //TODO: remove user from other tables
     }
 }

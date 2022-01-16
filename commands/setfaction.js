@@ -14,20 +14,27 @@ module.exports =
 
         if(args.length != 2)
         {
-            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"setfaction [userID] [faction]");
+            message.reply("ERROR: Incorrect number of arguments. Please make sure your command is in this format:\n"+config.prefix+"setfaction @username [faction]");
             return;
         }
-        const isgood = pointsdata.prepare("SELECT count(*) FROM characters WHERE id = ?;").get(args[0]);
+
+        const user = message.mentions.users.first();
+        if(user == null)
+        {
+            message.reply("ERROR: incorrect number or order of arguments. Please make sure your command is in this format:\n"+ config.prefix+"setfaction @username [faction]");
+            return;
+        }
+        const isgood = pointsdata.prepare("SELECT count(*) FROM characters WHERE id = ?;").get(user.id);
         if(!isgood["count(*)"])
         {
             message.reply("ERROR: could not find a user with that ID in the points database.");
             return;
         }
 
-        var character = pointsdata.prepare("SELECT * FROM characters WHERE id = ?;").get(args[0]);
+        var character = pointsdata.prepare("SELECT * FROM characters WHERE id = ?;").get(user.id);
         character.faction = args[1];
 
         pointsdata.prepare("INSERT OR REPLACE INTO characters (id, points, level, cooldown, patron, faction) VALUES (@id, @points, @level, @cooldown, @patron, @faction);").run(character);
-        message.reply("Set character with ID "+ args[0] + "'s faction to "+args[1] + ".");
+        message.reply("Set "+ user.tag + "'s faction to "+args[1] + ".");
     }
 }
