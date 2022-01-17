@@ -12,6 +12,7 @@
 	"level_alerts_channel" : "906201060673208361",
 	"bot_command_channel" : "906201386113462352",
 	"thread_alerts_channel" : "906200967815528498",
+	"servers_channels" : "",
 
 	"ic_points_cooldown": 60000,
 	"minpoints": 1,
